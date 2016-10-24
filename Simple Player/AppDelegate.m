@@ -7,6 +7,7 @@
 //
 
 #import "AppDelegate.h"
+#import "GlobalSongArray.h"
 
 @interface AppDelegate ()
 
@@ -16,7 +17,86 @@
 
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+    
+    
+    
     // Override point for customization after application launch.
+    
+    GlobalSongArray *songs = [GlobalSongArray getInstance];
+    songs.array = [[NSMutableArray alloc] init];
+
+    songs.array = [NSMutableArray arrayWithObjects:
+                   nil];
+        
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    NSURL *directoryURL =  [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] lastObject]; // URL pointing to the directory you want to browse (Documents)
+    NSArray *keys = [NSArray arrayWithObject:NSURLIsDirectoryKey];
+    
+    NSDirectoryEnumerator *enumerator = [fileManager
+                                         enumeratorAtURL:directoryURL
+                                         includingPropertiesForKeys:keys
+                                         options:0
+                                         errorHandler:^(NSURL *url, NSError *error) {
+                                             // Handle the error.
+                                             // Return YES if the enumeration should continue after the error.
+                                             return YES;
+                                         }];
+    
+    for (NSURL *url in enumerator) {
+        NSError *error;
+        NSNumber *isDirectory = nil;
+        if (! [url getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:&error]) {
+            // handle error
+        }
+        else if (! [isDirectory boolValue]) {
+            // No error and it’s not a directory; do something with the file
+            
+            NSString *extension = [url pathExtension];
+            
+            if ([extension isEqualToString:@"mp3"] ||
+                [extension isEqualToString:@"mp4"] ||
+                [extension isEqualToString:@"m4a"] ||
+                [extension isEqualToString:@"aac"] ||
+                [extension isEqualToString:@"wav"] ||
+                [extension isEqualToString:@"alac"]
+                ) {
+                
+                AVAsset *asset = [AVURLAsset URLAssetWithURL:url options:nil];
+                
+                NSArray *keys = [NSArray arrayWithObjects:@"commonMetadata", nil];
+                [asset loadValuesAsynchronouslyForKeys:keys completionHandler:^{
+                    NSArray *artworks = [AVMetadataItem metadataItemsFromArray:asset.commonMetadata
+                                                                       withKey:AVMetadataCommonKeyArtwork
+                                                                      keySpace:AVMetadataKeySpaceCommon];
+                    
+                    for (AVMetadataItem *item in artworks) {
+                        if ([item.keySpace isEqualToString:AVMetadataKeySpaceID3]) {
+                            NSDictionary *d = [item.value copyWithZone:nil];
+                            //self.currentSongArtwork = [UIImage imageWithData:[d objectForKey:@"data"]];
+                        } else if ([item.keySpace isEqualToString:AVMetadataKeySpaceiTunes]) {
+                            //self.currentSongArtwork = [UIImage imageWithData:[item.value copyWithZone:nil]];
+                        }
+                    }
+                }];
+                
+                [songs.array addObject:asset];
+                
+            }
+        }
+    }
+    
+    /*AVAsset *asset = songs.array[indexPath.row];
+     
+     NSArray *titles = [AVMetadataItem metadataItemsFromArray:asset.commonMetadata withKey:AVMetadataCommonKeyTitle keySpace:AVMetadataKeySpaceCommon];
+     
+     AVMetadataItem *title = [titles objectAtIndex:0];
+     
+     cell.title = [title.value copyWithZone:nil];
+*/
+    
+    NSSortDescriptor *sort = [NSSortDescriptor sortDescriptorWithKey:@"commonMetadata" ascending:YES];
+    [songs.array sortUsingDescriptors:[NSArray arrayWithObject:sort]];
+    
     return YES;
 }
 
